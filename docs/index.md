@@ -63,7 +63,7 @@ HTTPステータス `200 OK` が応答されたURLには問題がないからさ
 
 ## 解決方法
 
-wgetのログファイルを **行指向** のテキストファイルに変換するプログラムを作ろう。`WgetLogDigest` と呼ぶことにします。\`WgetLogDigest\`は下記のようなテキストを出力します。
+wgetのログファイルを **行指向** のテキストファイルに変換するプログラムを作ろう。`WgetLogDigest` と呼ぶことにします。`WgetLogDigest` は下記のようなテキストを出力します。
 
     2026-10-23 22:03:04  http://www.myapp.jp/index.html  200  OK
     2026-10-23 22:03:34  http://www.myapp.jp/member/index.html  200  OK
@@ -108,7 +108,7 @@ Gradleの `build.gradle` のサンプルを下記に示します。ここでは 
         doLast {
             new ByteArrayOutputStream().withStream { os ->
                 def result = injected.execOps.exec {
-                    commandLine 'grep', '404', "./build/tmp/out/straight.txt"
+                    commandLine 'grep', 'Not Found', "./build/tmp/out/straight.txt"
                     ignoreExitValue = true
                     standardOutput = os
                 }
@@ -127,9 +127,8 @@ Gradleの `build.gradle` のサンプルを下記に示します。ここでは 
     2026-10-23 22:04:55 http://www.myapp.com/member/movie.html  404 Not Found
     2026-10-23 22:04:58 http://www.myapp.com/images/school_01s.gif  404 Not Found
     2026-10-23 22:05:20 http://www.myapp.com/images/qr_bg.gif   404 Not Found
-    2026-10-23 22:06:17 http://www.myapp.com/member/documents/140420.doc    200 OK
 
-これを見てわたしは自分のWebサイトにたくさんmistakesを発見することができました。かなり有効です。
+これによってわたしは自分のWebサイトにたくさんのミスを発見することができました。有効だと思います。
 
 ## 配布
 
@@ -139,8 +138,8 @@ Gradleの `build.gradle` のサンプルを下記に示します。ここでは 
 
 素朴なJavaコードなので読むのは簡単でしょう。説明は省略します。
 
-Gradleプラグインとしてでなく WgetLogDigest のJavaクラスをjarを参照して直接使うこともできます。
+Gradleプラグインとしてでなく WgetLogDigest のJavaクラスをjarをダウンロードして直接使うこともできます。
 
-- link:https://central.sonatype.com/artifact/com.kazurayam/wget-log-digestMaven Central, \[wget-log-digest\]
+- [Maven Central / wget-log-digest](https://central.sonatype.com/artifact/com.kazurayam/wget-log-digest)
 
-  1.  [API javadoc](https://kazurayam.github.io/WgetLogDigest/lib/javadoc/index.html)
+- [API javadoc](https://kazurayam.github.io/WgetLogDigest/lib/javadoc/index.html)
