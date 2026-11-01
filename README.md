@@ -125,3 +125,4 @@ The component Java classes are published at Maven Central. You can use it as a p
 1. Maven Central, [wget-log-digest](https://central.sonatype.com/artifact/com.kazurayam/wget-log-digest)
 2. Gradle Plugin Portal, [com.kazurayam.wget-log-digest-plugin](https://plugins.gradle.org/plugin/com.kazurayam.wget-log-digest-plugin)
 3. [API javadoc](https://kazurayam.github.io/WgetLogDigest/lib/javadoc/index.html)
+4. [日本語ドキュメント](https://kazurayam.github.io/WgetLogDigest/)
