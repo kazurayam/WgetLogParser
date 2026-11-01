@@ -1,0 +1,158 @@
+:projectVersion: 0.0.0
+
+== WgetLogDigest
+
+=== 解決すべき問題
+
+あなたがWebサイトの管理者であるとします。GNU link:https://www.gnu.org/software/wget/[wget] コマンドを使ってWebサイトのHTML群をダウンロードするとします。コマンドラインでwgetを実行する時にオプションとして link:https://www.gnu.org/software/wget/manual/html_node/Logging-and-Input-File-Options.html[-o logfile] を指定するとログをファイルに保存することができます。そのログの内容はたとえば下記のようなテキストです。
+
+[source,text]
+----
+...
+--2026-10-23 22:03:04--  http://www.myapp.jp/index.html
+Resolving www.myapp.jp (www.myapp.jp)... 153.122.205.45
+Connecting to www.myapp.jp (www.myapp.jp)|153.122.205.45|:80... connected.
+HTTP request sent, awaiting response... 200 OK
+Length: unspecified [text/html]
+Saving to: 'www.myapp.jp/index.html'
+
+     0K ......                                                 8.47M=0.001s
+
+2026-10-23 22:03:04 (8.47 MB/s) - 'www.myapp.jp/index.html' saved [6836]
+
+Loading robots.txt; please ignore errors.
+
+--2026-10-23 22:03:34--  http://www.myapp.jp/member/index.html
+Reusing existing connection to www.myapp.jp:80.
+HTTP request sent, awaiting response... 401 Unauthorized
+Authentication selected: Basic realm="Please type your user-id and password"
+Reusing existing connection to www.myapp.jp:80.
+HTTP request sent, awaiting response... 200 OK
+Length: unspecified [text/html]
+Saving to: 'www.myapp.jp/member/index.html'
+
+     0K .........                                              3.54M=0.003s
+
+2026-10-23 22:03:34 (3.54 MB/s) - 'www.myapp.jp/member/index.html' saved [9843]
+
+Incomplete or invalid multibyte sequence encountered
+--2026-10-23 22:03:35--  http://www.myapp.jp/img/common/f_logo.png
+Reusing existing connection to www.myapp.jp:80.
+HTTP request sent, awaiting response... 200 OK
+Length: 5098 (5.0K) [image/png]
+Saving to: 'www.myapp.jp/img/common/f_logo.png'
+
+     0K ....                                                  100% 39.9M=0s
+
+2026-10-23 22:03:35 (39.9 MB/s) - 'www.myapp.jp/img/common/f_logo.png' saved [5098/5098]
+
+--2026-10-23 22:03:36--  http://www.myapp.jp/privacy/index.html
+Reusing existing connection to www.myapp.jp:80.
+HTTP request sent, awaiting response... 404 Not Found
+2026-10-23 22:03:36 ERROR 404: Not Found.
+
+--2026-10-23 22:03:37--  http://www.myapp.jp/img/index/page_top.png
+Reusing existing connection to www.myapp.jp:80.
+HTTP request sent, awaiting response... 200 OK
+Length: 1350 (1.3K) [image/png]
+Saving to: 'www.myapp.jp/img/index/page_top.png'
+
+     0K .   100% 15.8M=0s
+
+...
+----
+
+HTTPステータス `200 OK` が応答されたURLには問題がないからさておくとして `404 Not Found` が応答されたURLには注意を払うべきでしょう。wgetのログの中から情報を抽出して `404 Not Found` が応答されたURLの一覧リストを作りたくなるでしょう。URLとHTTP応答ステータスがテキスト1行にレイアウトされていれば wgetのログを `grep` コマンドでフィルタするだけで必要十分なリストが得られるでしょう。
+
+ところが上記のサンプルをみればすぐわかる、wgetのログの形式は *行指向* でありません。HTTP要求の情報とHTTP応答の情報が別の行に出力されている。このままではgrepコマンドで後処理することが難しい。困った。
+
+=== 解決方法
+
+wgetのログファイルを *行指向* のテキストファイルに変換するプログラムを作ろう。`WgetLogDigest` と呼ぶことにします。`WgetLogDigest` は下記のようなテキストを出力します。
+
+```text
+2026-10-23 22:03:04  http://www.myapp.jp/index.html  200  OK
+2026-10-23 22:03:34  http://www.myapp.jp/member/index.html  200  OK
+2026-10-23 22:03:35  http://www.myapp.jp/img/common/f_logo.png  200  OK
+2026-10-23 22:03:36  http://www.myapp.jp/privacy/index.html  404  Not Found
+2026-10-23 22:03:37  http://www.myapp.jp/img/index/page_top.png  200 OK
+```
+
+各行はTABで区切られています。
+
+`yyyy-MM--dd hh:mm:ss` **\t** `URL` **\t** `status` **\t** `message`
+
+
+
+=== 説明
+
+わたしはJavaで `WgetLogDigest` を開発しました。GitHubでレポジトリを公開しました。
+
+- link:https://github.com/kazurayam/WgetLogDigest[WgetLogDigest の GitHubレポジトリ]
+
+Java/Gradle/Kotlinのビルドツール link:https://gradle.org/[Gradle]のカスタムプラグインとして WgetLogDigest を利用することができます。
+
+Gradleの `build.gradle` のサンプルを下記に示します。ここでは wgetのログがファイルとして与えられたと仮定しています。ログを行指向フォーマットに変換し、出力されたテキストをOSのgrepコマンドでフィルタしています。
+
+```gradle
+plugins {
+    id("com.kazurayam.wget-log-digest-plugin") version "0.1.11"
+}
+
+tasks.register('digest', com.kazurayam.wgetlog.DigesterTask) {
+    wgetLogFile = file("../plugin/src/test/fixtures/wget.log")
+    outputFile = file("./build/tmp/out/straight.txt")
+}
+
+import org.gradle.process.ExecOperations
+
+interface InjectedExecOps {
+    @javax.inject.Inject
+    ExecOperations getExecOps()
+}
+
+tasks.register('listFaultyURLs') {
+    dependsOn('digest')
+    def injected = project.objects.newInstance(InjectedExecOps)
+    def stdout = new ByteArrayOutputStream()
+    doLast {
+        new ByteArrayOutputStream().withStream { os ->
+            def result = injected.execOps.exec {
+                commandLine 'grep', 'Not Found', "./build/tmp/out/straight.txt"
+                ignoreExitValue = true
+                standardOutput = os
+            }
+            def outputFile = file("./build/tmp/out/faultyURLs.txt")
+            outputFile.text = os.toString()
+        }
+    }
+}
+```
+
+わたしが関係しているシステムで得られたwgetログにこのビルドを実行すると下記のような faulty URL のリストが得られました。
+
+[source,text]
+----
+2026-10-23 22:03:06	http://www.myapp.com/robots.txt	404	Not Found
+2026-10-23 22:03:26	https://www.myapp.com/robots.txt	404	Not Found
+2026-10-23 22:03:36	http://www.myapp.com/privacy/index.html	404	Not Found
+2026-10-23 22:04:43	http://www.myapp.com/member/documents/20261017/%E9%9A%A8%EF%BD%AC149%E8%9D%97%E6%A8%A3%E6%90%A8%E8%AD%BD%EF%BD%AE%E9%80%B5%EF%BD%BC%E9%81%98%E9%B7%B9%E5%AF%94%E9%9A%B2%87%E8%8E%A8%9A2026%E9%81%98%E4%B9%9D%83%E5%8A%B1%CE%9F%E7%B9%A7%EF%BD%B0%E7%B9%9D%EF%BD%A9%E7%B9%9D%A0.pdf	404	Not Found
+2026-10-23 22:04:55	http://www.myapp.com/member/movie.html	404	Not Found
+2026-10-23 22:04:58	http://www.myapp.com/images/school_01s.gif	404	Not Found
+2026-10-23 22:05:20	http://www.myapp.com/images/qr_bg.gif	404	Not Found
+----
+
+これによってわたしは自分のWebサイトにたくさんのミスを発見することができました。有効だと思います。
+
+=== 配布
+
+ソースコードはここにあります
+
+- link:https://github.com/kazurayam/WgetLogDigest/tree/master/lib/src/main/java/com/kazurayam/wgetlog[GitHubレポジトリ]
+
+素朴なJavaコードなので読むのは簡単でしょう。説明は省略します。
+
+Gradleプラグインとしてでなく WgetLogDigest のJavaクラスをjarをダウンロードして直接使うこともできます。
+
+- link:https://central.sonatype.com/artifact/com.kazurayam/wget-log-digest[Maven Central / wget-log-digest]
+- link:https://kazurayam.github.io/WgetLogDigest/lib/javadoc/index.html[API javadoc]
